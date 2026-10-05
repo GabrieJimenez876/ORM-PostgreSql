@@ -1,0 +1,36 @@
+{% if errores %}
+  <div class="alert alert-error" role="alert">
+    <strong>Revisa los siguientes datos:</strong>
+    <ul>
+      {% for error in errores %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+<form method="post" class="form-grid">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field field-full">
+    <label for="detalle">Detalle</label>
+    <input id="detalle" name="detalle" type="text" maxlength="50" required value="{{ valores.detalle }}" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="monto">Monto (Bs)</label>
+    <input id="monto" name="monto" type="number" min="0.01" max="99999999.99" step="0.01" required value="{{ valores.monto }}">
+  </div>
+  <div class="field">
+    <label for="fecha">Fecha</label>
+    <input id="fecha" name="fecha" type="date" required value="{{ valores.fecha }}">
+  </div>
+  <div class="field field-full">
+    <label for="idformapago">Forma de pago</label>
+    <select id="idformapago" name="idformapago" required>
+      <option value="">Selecciona una forma de pago</option>
+      {% for forma in formas_pago %}
+        <option value="{{ forma.idformapago }}" {% if valores.idformapago == forma.idformapago|string %}selected{% endif %}>{{ forma.desformapago }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-actions field-full">
+    <button class="button button-primary" type="submit">{{ "Guardar cambios" if egreso else "Guardar egreso" }}</button>
+    <a class="button button-secondary" href="{{ url_for('web.inicio') }}">Cancelar</a>
+  </div>
+</form>

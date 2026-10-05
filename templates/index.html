@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Egresos · Gestor de egresos{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Periodo {{ "%02d"|format(parametro.mes) }}/{{ parametro.gestion }}</p>
+      <h1>Egresos</h1>
+      <p class="muted">Consulta y administra los egresos del periodo activo.</p>
+    </div>
+    <a class="button button-primary" href="{{ url_for('web.crear_egreso') }}">Crear egreso</a>
+  </section>
+
+  <section class="summary-card" aria-label="Resumen del periodo">
+    <span>Total registrado</span>
+    <strong>Bs {{ "{:,.2f}".format(total) }}</strong>
+    <span>{{ egresos|length }} egreso(s)</span>
+  </section>
+
+  {% if egresos %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th>Fecha</th>
+            <th>Forma de pago</th>
+            <th class="numeric">Monto</th>
+            <th class="actions-heading">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for egreso in egresos %}
+            <tr>
+              <td data-label="Detalle">{{ egreso.detalle }}</td>
+              <td data-label="Fecha">{{ egreso.fecha.strftime("%d/%m/%Y") }}</td>
+              <td data-label="Forma de pago">{{ egreso.forma_pago.desformapago }}</td>
+              <td class="numeric" data-label="Monto">Bs {{ "{:,.2f}".format(egreso.monto) }}</td>
+              <td class="actions" data-label="Acciones">
+                <a class="button button-small button-secondary" href="{{ url_for('web.editar_egreso', idegreso=egreso.idegreso) }}">Editar</a>
+                <form method="post" action="{{ url_for('web.eliminar_egreso', idegreso=egreso.idegreso) }}" onsubmit="return confirm('¿Eliminar este egreso?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="button button-small button-danger" type="submit">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <section class="empty-state">
+      <h2>Aún no hay egresos</h2>
+      <p>Registra el primer egreso de este periodo para comenzar.</p>
+      <a class="button button-primary" href="{{ url_for('web.crear_egreso') }}">Crear egreso</a>
+    </section>
+  {% endif %}
+{% endblock %}

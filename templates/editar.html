@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Editar egreso · Gestor de egresos{% endblock %}
+{% block content %}
+  <section class="form-card">
+    <div class="form-card-heading">
+      <p class="eyebrow">Egreso #{{ egreso.idegreso }}</p>
+      <h1>Editar egreso</h1>
+      <p class="muted">Actualiza la información del egreso seleccionado.</p>
+    </div>
+    {% include "_egreso_form.html" %}
+  </section>
+{% endblock %}

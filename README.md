@@ -1,121 +1,105 @@
-# ORM con PostgreSQL
+# Gestor de egresos con Flask y PostgreSQL
 
-Proyecto desarrollado en Python con SQLAlchemy para gestionar datos en PostgreSQL usando un ORM.
-
-## Descripción
-
-Este proyecto implementa una pequeña aplicación CRUD para manejar usuarios, productos y pedidos. La capa de acceso a datos se resuelve con SQLAlchemy ORM y PostgreSQL como motor de base de datos.
-
-## Tecnologías
-
-- Python 3.11+
-- SQLAlchemy 2.x
-- psycopg2-binary
-- PostgreSQL 16
-- Docker Compose para levantar la base de datos
-
-## Estructura del proyecto
-
-- `orm_project/config.py`: configuración de la conexión.
-- `orm_project/database.py`: engine y sesión de SQLAlchemy.
-- `orm_project/models.py`: modelos ORM.
-- `orm_project/services.py`: CRUD y lógica de negocio.
-- `app.py`: script principal para ejecutar la aplicación.
+Aplicación web para registrar, consultar, editar, eliminar y buscar egresos. Usa Flask, Flask-SQLAlchemy y PostgreSQL.
 
 ## Requisitos
 
-1. Python instalado.
-2. Docker y Docker Compose (opcional, para levantar PostgreSQL localmente).
-3. PostgreSQL corriendo en `localhost:5432` o un contenedor local.
+- Python 3.11 o superior
+- Docker Compose
+
+## Inicio rápido con Docker
+
+1. Copia `.env.example` a `.env` y cambia `SECRET_KEY` por una clave aleatoria. Por ejemplo, en PowerShell:
+
+   ```powershell
+   Copy-Item .env.example .env
+   python -c "import secrets; print(secrets.token_hex(32))"
+   ```
+
+   Copia el valor generado en `SECRET_KEY` dentro de `.env`. Las credenciales predeterminadas del ejemplo son únicamente para desarrollo local.
+
+2. Levanta la aplicación y PostgreSQL:
+
+   ```powershell
+   docker compose up --build
+   ```
+
+3. Abre [http://localhost:5000](http://localhost:5000). Para detener los servicios, usa `Ctrl+C`; para eliminarlos conserva el volumen de datos con `docker compose down`.
+
+La primera ejecución crea las tablas, un periodo para el mes actual y formas de pago iniciales (efectivo, tarjeta y transferencia). La base de datos escucha solo en `localhost`.
+
+## Ejecutar Flask fuera de Docker
+
+Levanta PostgreSQL:
+
+```powershell
+docker compose up -d postgres
+```
+
+Crea y activa un entorno virtual, instala las dependencias y configura `.env` como se indica arriba:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python app.py
+```
+
+La aplicación estará disponible en [http://127.0.0.1:5000](http://127.0.0.1:5000). Para ejecutar con Gunicorn en un entorno compatible:
+
+```bash
+gunicorn --bind 0.0.0.0:5000 "app:create_app()"
+```
+
+También puedes configurar `DATABASE_URL` en `.env` para sustituir `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` y `DB_NAME`.
+
+## Funcionalidades
+
+- Listado y total de egresos del periodo contable activo.
+- Alta y edición con validación de detalle, monto, fecha y forma de pago.
+- Eliminación protegida con confirmación.
+- Búsqueda por detalle.
+- Protección CSRF en las operaciones que modifican datos.
+- Formularios adaptables a pantallas pequeñas.
+
+Los egresos se asignan al periodo contable más reciente registrado en `parametro`. Si la tabla aún no tiene uno, se crea automáticamente el periodo actual. Las formas de pago iniciales se cargan únicamente cuando no existe ninguna.
+
+## Pruebas
+
+Con las dependencias instaladas, ejecuta las pruebas con:
+
+```powershell
+python -m unittest discover -s tests
+```
 
 ## Configuración
 
-1. Crea un entorno virtual:
+Variables admitidas en `.env`:
 
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   ```
+| Variable | Valor local predeterminado | Descripción |
+| --- | --- | --- |
+| `SECRET_KEY` | Obligatoria | Clave de sesión y CSRF. Usa una clave aleatoria y privada. |
+| `DATABASE_URL` | — | URL SQLAlchemy opcional; si existe, prevalece sobre las variables individuales. |
+| `DB_USER` | `postgres` | Usuario PostgreSQL. |
+| `DB_PASSWORD` | `postgres` | Contraseña PostgreSQL. |
+| `DB_HOST` | `localhost` | Host PostgreSQL (Compose configura `postgres` para el contenedor web). |
+| `DB_PORT` | `5432` | Puerto PostgreSQL. |
+| `DB_NAME` | `orm_db` | Nombre de la base de datos. |
+| `PORT` | `5000` | Puerto al ejecutar `python app.py`. |
+| `FLASK_DEBUG` | Desactivado | Define `1` solo para depuración local. |
 
-2. Instala las dependencias:
+`db.create_all()` prepara las tablas que falten, pero no migra tablas existentes. Si partes de una base de datos creada por una versión anterior del proyecto, utiliza una base nueva o prepara una migración antes de desplegar.
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Estructura
 
-3. Crea un archivo `.env` con los datos de la base de datos:
-
-   ```bash
-   copy .env.example .env
-   ```
-
-   Ajusta los valores si necesitas cambiar usuario, contraseña o nombre de la base.
-
-## Levantar PostgreSQL con Docker
-
-```bash
-docker compose up -d
+```text
+.
+├── app.py
+├── config.py
+├── models.py
+├── routes.py
+├── templates/
+├── static/css/style.css
+├── Dockerfile
+└── docker-compose.yml
 ```
-
-Esto levantará PostgreSQL en `localhost:5432` con los datos:
-
-- Usuario: `postgres`
-- Contraseña: `postgres`
-- Base de datos: `orm_db`
-
-## Ejecutar el proyecto
-
-Crear las tablas:
-
-```bash
-python app.py --init-db
-```
-
-Insertar datos de ejemplo:
-
-```bash
-python app.py --demo
-```
-
-Listar usuarios:
-
-```bash
-python app.py --list-users
-```
-
-Listar productos:
-
-```bash
-python app.py --list-products
-```
-
-## Modelo de datos
-
-- Usuario: id, nombre, email, activo, creado_en
-- Producto: id, nombre, descripcion, precio, stock
-- Pedido: id, usuario_id, fecha, total
-- DetallePedido: id, pedido_id, producto_id, cantidad, subtotal
-
-## Ejemplo de flujo
-
-La aplicación permite:
-
-- Crear usuarios
-- Consultar usuarios
-- Actualizar datos de usuarios
-- Eliminar usuarios
-- Registrar productos
-- Generar pedidos con detalle
-
-## Uso en producción
-
-En un entorno real se recomienda:
-
-- Usar variables de entorno seguras
-- Añadir validaciones con Pydantic o FastAPI
-- Crear migraciones con Alembic
-- Ejecutar pruebas unitarias e integración
-
-## Autor
-
-Proyecto realizado como ejercicio de ORM con PostgreSQL.

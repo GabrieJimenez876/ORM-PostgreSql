@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Nuevo egreso · Gestor de egresos{% endblock %}
+{% block content %}
+  <section class="form-card">
+    <div class="form-card-heading">
+      <p class="eyebrow">Periodo {{ "%02d"|format(parametro.mes) }}/{{ parametro.gestion }}</p>
+      <h1>Nuevo egreso</h1>
+      <p class="muted">Completa los datos para registrar un egreso.</p>
+    </div>
+    {% include "_egreso_form.html" %}
+  </section>
+{% endblock %}
