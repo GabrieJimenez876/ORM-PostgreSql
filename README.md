@@ -59,10 +59,14 @@ También puedes configurar `DATABASE_URL` en `.env` para sustituir `DB_USER`, `D
 - Alta y edición con validación de detalle, monto, fecha y forma de pago.
 - Eliminación protegida con confirmación.
 - Búsqueda por detalle.
+- Registro, inicio y cierre de sesión; cada cuenta solo puede ver y modificar sus egresos.
+- Contraseñas almacenadas con hash seguro, nunca en texto plano.
 - Protección CSRF en las operaciones que modifican datos.
 - Formularios adaptables a pantallas pequeñas.
 
-Los egresos se asignan al periodo contable más reciente registrado en `parametro`. Si la tabla aún no tiene uno, se crea automáticamente el periodo actual. Las formas de pago iniciales se cargan únicamente cuando no existe ninguna.
+Abre `/registro` para crear la primera cuenta. Los egresos se asignan al periodo contable más reciente registrado en `parametro`. Si la tabla aún no tiene uno, se crea automáticamente el periodo actual. Las formas de pago iniciales se cargan únicamente cuando no existe ninguna.
+
+Al arrancar, la aplicación añade `cuenta_id` a una tabla `egresos` existente si todavía no tiene esa columna, sin borrar registros. Los egresos antiguos sin propietario se asignan a la primera cuenta, para que sus datos no queden visibles a todas las cuentas nuevas. Usa un respaldo de la base de datos antes de actualizar una instalación existente.
 
 ## Pruebas
 
@@ -88,7 +92,7 @@ Variables admitidas en `.env`:
 | `PORT` | `5000` | Puerto al ejecutar `python app.py`. |
 | `FLASK_DEBUG` | Desactivado | Define `1` solo para depuración local. |
 
-`db.create_all()` prepara las tablas que falten, pero no migra tablas existentes. Si partes de una base de datos creada por una versión anterior del proyecto, utiliza una base nueva o prepara una migración antes de desplegar.
+`db.create_all()` prepara las tablas que falten. La única migración automática de tablas existentes añade la columna `cuenta_id` a `egresos`; no actualiza otros cambios estructurales. Si tu base tiene un esquema anterior diferente, respáldala y prepara una migración antes de desplegar.
 
 ## Estructura
 

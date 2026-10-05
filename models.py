@@ -1,10 +1,26 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
+from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import CheckConstraint, UniqueConstraint, func
 
 db = SQLAlchemy()
+
+
+class Cuenta(UserMixin, db.Model):
+    __tablename__ = "cuentas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(32), nullable=False, unique=True, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    egresos = db.relationship("Egreso", back_populates="cuenta")
 
 
 class Parametro(db.Model):
@@ -53,6 +69,12 @@ class Egreso(db.Model):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    cuenta_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cuentas.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     idformapago = db.Column(
         db.Integer,
         db.ForeignKey("forma_pago.idformapago", ondelete="RESTRICT"),
@@ -60,6 +82,7 @@ class Egreso(db.Model):
     )
 
     forma_pago = db.relationship("FormaPago", back_populates="egresos")
+    cuenta = db.relationship("Cuenta", back_populates="egresos")
 
     def to_dict(self) -> dict[str, object]:
         return {

@@ -49,6 +49,7 @@ a {
 
 .nav-links {
   display: flex;
+  align-items: center;
   gap: 22px;
 }
 
@@ -60,6 +61,31 @@ a {
 
 .nav-links a:hover,
 .nav-links a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.nav-user {
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.nav-links form {
+  margin: 0;
+}
+
+.nav-logout {
+  padding: 0;
+  border: 0;
+  color: #d8e1f0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.nav-logout:hover {
   color: #fff;
   text-decoration: underline;
 }
@@ -260,6 +286,52 @@ tbody tr:last-child td {
   padding: 30px;
 }
 
+.auth-card {
+  width: min(460px, 100%);
+  margin: 30px auto;
+  padding: 32px;
+  border: 1px solid #e0e5ed;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(25 42 70 / 7%);
+}
+
+.auth-card h1 {
+  margin-bottom: 8px;
+}
+
+.auth-card > .muted {
+  margin-bottom: 24px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-form > .button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.field-help {
+  color: #677487;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.auth-switch {
+  margin: 23px 0 0;
+  color: #526176;
+  font-size: 0.92rem;
+  text-align: center;
+}
+
+.auth-switch a {
+  color: #2459a6;
+  font-weight: 650;
+}
+
 .form-card-heading {
   margin-bottom: 25px;
 }
@@ -381,6 +453,7 @@ tbody tr:last-child td {
   .nav-links {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
@@ -404,6 +477,11 @@ tbody tr:last-child td {
 
   .form-card {
     padding: 22px 18px;
+  }
+
+  .auth-card {
+    margin-block: 8px;
+    padding: 24px 20px;
   }
 
   .form-grid {

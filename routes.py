@@ -1,13 +1,120 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
+import re
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
-from sqlalchemy import func, select
+from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import Egreso, FormaPago, Parametro, db
+from models import Cuenta, Egreso, FormaPago, Parametro, db
 
 bp = Blueprint("web", __name__)
+auth_bp = Blueprint("auth", __name__)
+
+
+def _egreso_de_usuario(idegreso: int) -> Egreso:
+    egreso = db.session.scalar(
+        select(Egreso).where(
+            Egreso.idegreso == idegreso,
+            Egreso.cuenta_id == current_user.id,
+        )
+    )
+    if egreso is None:
+        abort(404)
+    return egreso
+
+
+@auth_bp.route("/registro", methods=["GET", "POST"])
+def registro():
+    if current_user.is_authenticated:
+        return redirect(url_for("web.inicio"))
+
+    username = request.form.get("username", "").strip().lower()
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        password_confirm = request.form.get("password_confirm", "")
+        errores = []
+        if not re.fullmatch(r"[a-z0-9_.-]{3,32}", username):
+            errores.append(
+                "El usuario debe tener entre 3 y 32 caracteres: letras, números, punto, guion o guion bajo."
+            )
+        if len(password) < 12:
+            errores.append("La contraseña debe tener al menos 12 caracteres.")
+        if len(password) > 128:
+            errores.append("La contraseña no puede superar los 128 caracteres.")
+        if password != password_confirm:
+            errores.append("Las contraseñas no coinciden.")
+        if db.session.scalar(select(Cuenta.id).where(Cuenta.username == username)):
+            errores.append("Ese nombre de usuario ya está registrado.")
+
+        if not errores:
+            cuenta = Cuenta(
+                username=username,
+                password_hash=generate_password_hash(password),
+            )
+            db.session.add(cuenta)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                if db.session.scalar(select(Cuenta.id).where(Cuenta.username == username)):
+                    errores.append("Ese nombre de usuario ya está registrado.")
+                else:
+                    raise
+            else:
+                if cuenta.id == db.session.scalar(select(func.min(Cuenta.id))):
+                    db.session.execute(
+                        update(Egreso)
+                        .where(Egreso.cuenta_id.is_(None))
+                        .values(cuenta_id=cuenta.id)
+                    )
+                    db.session.commit()
+                login_user(cuenta)
+                flash("Cuenta creada. Ya puedes registrar tus egresos.", "success")
+                return redirect(url_for("web.inicio"))
+
+        return render_template(
+            "registro.html",
+            username=username,
+            errores=errores,
+        ), 400
+
+    return render_template("registro.html", username="", errores=[])
+
+
+@auth_bp.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("web.inicio"))
+
+    username = request.form.get("username", "").strip().lower()
+    error = None
+    if request.method == "POST":
+        cuenta = db.session.scalar(select(Cuenta).where(Cuenta.username == username))
+        password = request.form.get("password", "")
+        if cuenta is None or not check_password_hash(cuenta.password_hash, password):
+            error = "Usuario o contraseña incorrectos."
+        else:
+            login_user(cuenta)
+            flash("Sesión iniciada correctamente.", "success")
+            return redirect(url_for("web.inicio"))
+
+    return render_template(
+        "login.html",
+        username=username,
+        error=error,
+    )
+
+
+@auth_bp.post("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Has cerrado sesión.", "success")
+    return redirect(url_for("auth.login"))
 
 
 def _periodo_actual() -> Parametro:
@@ -118,18 +225,24 @@ def _formulario_invalido(
 
 
 @bp.get("/")
+@login_required
 def inicio():
     parametro = _periodo_actual()
     egresos = db.session.scalars(
         select(Egreso)
         .options(joinedload(Egreso.forma_pago))
-        .where(Egreso.gestion == parametro.gestion, Egreso.mes == parametro.mes)
+        .where(
+            Egreso.gestion == parametro.gestion,
+            Egreso.mes == parametro.mes,
+            Egreso.cuenta_id == current_user.id,
+        )
         .order_by(Egreso.fecha.desc(), Egreso.idegreso.desc())
     ).all()
     total = db.session.scalar(
         select(func.coalesce(func.sum(Egreso.monto), 0)).where(
             Egreso.gestion == parametro.gestion,
             Egreso.mes == parametro.mes,
+            Egreso.cuenta_id == current_user.id,
         )
     )
     return render_template(
@@ -141,6 +254,7 @@ def inicio():
 
 
 @bp.route("/egresos/crear", methods=["GET", "POST"])
+@login_required
 def crear_egreso():
     parametro = _periodo_actual()
     if request.method == "POST":
@@ -152,6 +266,7 @@ def crear_egreso():
             **datos,
             gestion=parametro.gestion,
             mes=parametro.mes,
+            cuenta_id=current_user.id,
         )
         db.session.add(egreso)
         db.session.commit()
@@ -168,8 +283,9 @@ def crear_egreso():
 
 
 @bp.route("/egresos/editar/<int:idegreso>", methods=["GET", "POST"])
+@login_required
 def editar_egreso(idegreso: int):
-    egreso = db.get_or_404(Egreso, idegreso)
+    egreso = _egreso_de_usuario(idegreso)
     if request.method == "POST":
         datos, errores = _validar_formulario()
         if errores:
@@ -191,8 +307,9 @@ def editar_egreso(idegreso: int):
 
 
 @bp.post("/egresos/eliminar/<int:idegreso>")
+@login_required
 def eliminar_egreso(idegreso: int):
-    egreso = db.get_or_404(Egreso, idegreso)
+    egreso = _egreso_de_usuario(idegreso)
     db.session.delete(egreso)
     db.session.commit()
     flash("El egreso se eliminó correctamente.", "success")
@@ -200,6 +317,7 @@ def eliminar_egreso(idegreso: int):
 
 
 @bp.get("/egresos/buscar")
+@login_required
 def buscar_egreso():
     query = request.args.get("q", "").strip()
     parametro = _periodo_actual()
@@ -210,6 +328,7 @@ def buscar_egreso():
             .where(
                 Egreso.gestion == parametro.gestion,
                 Egreso.mes == parametro.mes,
+                Egreso.cuenta_id == current_user.id,
                 func.lower(Egreso.detalle).contains(query.lower(), autoescape=True),
             )
             .options(joinedload(Egreso.forma_pago))
